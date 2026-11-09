@@ -1,0 +1,14 @@
+{
+  "_comment": "Elasticsearch 7.x/8.x (no Agent Builder): cr7258/elasticsearch-mcp-server talking straight to the ES API. Run as a Deployment in the SRE-agent namespace with --transport streamable-http; point the client at it. Variants: elasticsearch-mcp-server-es7 / elasticsearch-mcp-server (8.x) / elasticsearch-mcp-server-es9.",
+  "mcpServers": {
+    "kibana": {
+      "type": "http",
+      "url": "http://es-mcp.sre-agent.svc.cluster.local:8000/mcp"
+    }
+  },
+  "server_env_example": {
+    "ELASTICSEARCH_HOSTS": "https://es-prod.internal:9200",
+    "ELASTICSEARCH_API_KEY": "<read-only key>",
+    "ELASTICSEARCH_VERIFY_CERTS": "true"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "_comment": "POST /_security/api_key — read-only key for the SRE agent. Add 'kibana' application privileges block only if using the Agent Builder MCP. Tighten index patterns to your real ones.",
+  "name": "sre-agent-kibana-mcp",
+  "expiration": "90d",
+  "role_descriptors": {
+    "sre-agent-readonly": {
+      "cluster": ["monitor", "read_ilm"],
+      "indices": [
+        {
+          "names": ["logs-*", "filebeat-*", "fluentbit-*", "app-*", "istio-*", "paloalto-*", "f5-*", "nginx-*", "k8s-events-*"],
+          "privileges": ["read", "view_index_metadata", "monitor"]
+        }
+      ],
+      "applications": [
+        {
+          "application": "kibana-.kibana",
+          "privileges": ["feature_agentBuilder.read", "feature_discover.read"],
+          "resources": ["space:default"]
+        }
+      ]
+    }
+  }
+}

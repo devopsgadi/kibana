@@ -1,0 +1,12 @@
+{
+  "_comment": "Elastic Stack 9.3+ / Serverless: official Agent Builder MCP built into Kibana. Streamable HTTP. API key needs Agent Builder Kibana privileges + read on log indices only.",
+  "mcpServers": {
+    "kibana": {
+      "type": "http",
+      "url": "${KIBANA_URL}/s/${KIBANA_SPACE}/api/agent_builder/mcp",
+      "headers": {
+        "Authorization": "ApiKey ${KIBANA_API_KEY}"
+      }
+    }
+  }
+}
