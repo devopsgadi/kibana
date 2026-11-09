@@ -9,6 +9,10 @@ Prereq: `kibana-query-strategy`. `APP_LOGS = {ns}:"NS" AND {app}:"APP" AND NOT {
 
 Logback/Log4j JSON fields commonly present: `logger_name`, `thread_name`, `level`, `stack_trace`, `exception` / `error.type`, `error.message`, `error.stack_trace`, `traceId`, `spanId`, `http.request.method`, `http.response.status_code`, `url.path`, `application` / `spring.application.name`. Confirm in Step 0 of query-strategy.
 
+## Step 0 — Are app logs shipped at all?
+
+If `APP_LOGS` returns 0 docs while istio-proxy has docs, run the "shipper off vs app dead" check in `kibana-query-strategy` first. `ENABLE_FILE_BEAT=false` → skip Steps 1–5 here, run Step 6 (actuator via sidecar) and Step 7 (pod lifecycle) only, and report the gap.
+
 ## Step 1 — Did it start? Is it alive?
 
 Startup markers, tight window + T-24h:

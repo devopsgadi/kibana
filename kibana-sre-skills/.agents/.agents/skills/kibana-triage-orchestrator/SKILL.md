@@ -66,6 +66,7 @@ Read it like this:
 - App `ERROR` burst but Envoy 200s → business-logic / dependency → `springboot-dataapi-triage` then `database-triage` / `kafka-triage`
 - Pods `last` timestamp inside window + new `image` tag → bad deploy, confirm with Step 6 of envoy skill
 - Zero docs → sanity checks in `kibana-query-strategy` (shipper down? wrong label? retention?)
+- `by_container` shows istio-proxy only, no app container → run the "shipper off vs app dead" check in `kibana-query-strategy` **before** anything else. If `ENABLE_FILE_BEAT=false` in the app's values.yaml, the app is Envoy-only for triage: skip app-log steps in every domain skill, say so in GAPS, cap confidence at medium.
 
 ## Step B — Pick one request and walk the chain
 
@@ -117,7 +118,7 @@ EVIDENCE
 TIMELINE     <T-x image tag change / cert expiry / lag start / first error / ticket opened>
 BASELINE     <new since <date> | chronic, N/day> 
 SKILLS RUN   <list>  INDICES <list>  TIER <hot/warm/frozen>
-GAPS         <unparsed Envoy logs, no k8s events index, catalog miss, retention, async timeout>
+GAPS         <unparsed Envoy logs, no k8s events index, catalog miss, retention, async timeout, app logs not shipped (ENABLE_FILE_BEAT=false @ sha, date)>
 READ-ONLY NEXT CHECKS  <kubectl get/describe, istioctl proxy-config, openssl s_client — for a human with access>
 ```
 

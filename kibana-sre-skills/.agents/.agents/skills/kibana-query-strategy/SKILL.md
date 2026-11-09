@@ -164,6 +164,29 @@ For any error signature found in the tight window, run one async query over `WIN
 
 This is what turns "there are errors" into "these errors started with build 4.12.3 on Nov 6".
 
+## Empty app logs: shipper off vs app dead (run before concluding "app never started")
+
+Count both halves of the window in one call:
+
+```json
+{"size":0,"query":{"bool":{"filter":[RANGE,{"term":{"{ns}":"NS"}},{"term":{"{app}":"APP"}}]}},
+ "aggs":{"by_container":{"terms":{"field":"{container}","size":5}},
+         "app_logs_30d":{"date_histogram":{"field":"@timestamp","fixed_interval":"1d","min_doc_count":0,
+            "extended_bounds":{"min":"now-30d/d","max":"now/d"}},
+            "aggs":{"app_only":{"filter":{"bool":{"must_not":{"term":{"{container}":"istio-proxy"}}}}}}}}}
+```
+(The 30d histogram goes through `_async_search`.)
+
+| Result | Reading | Action |
+|---|---|---|
+| `istio-proxy` docs > 0, app-container docs = 0 in window, and `app_only` is 0 for every day since date D | Log shipping for this app is **off**, not an incident | GitLab: fetch `values.yaml` for APP at deployed sha; look for `ENABLE_FILE_BEAT: false` (or `filebeat.enabled`, `logging.enabled`). Report **"app logs not shipped — ENABLE_FILE_BEAT=false since <commit sha, date>; triage limited to Envoy access logs; app-side cause cannot be confirmed"**. Cap confidence at `medium`. Do not run app-log-dependent steps (springboot Step 2–4, kafka Step 3, database Step 2, lua Step 2); say they were skipped and why. |
+| `app_only` was > 0 daily, drops to 0 at D, D matches a commit on values.yaml | Same — flag flipped on D | Same report; cite the commit |
+| `app_only` was > 0 daily, drops to 0 at D, **no** commit, other apps in NS also at 0 | Shipper/DaemonSet outage or index/ILM problem | Report platform logging gap; check `filebeat-*`/`fluent*` own logs if shipped |
+| app docs = 0 **and** istio-proxy docs = 0, other apps fine | Pod never scheduled/started, or label wrong | existing path: k8s events index, retry `{pod}:APP-*` |
+| app docs present but stop mid-window | Crash / OOM | pod lifecycle |
+
+If GitLab is unreachable, state the shape ("no app-container docs for N days, sidecar healthy — consistent with shipping disabled") and ask the human to confirm `ENABLE_FILE_BEAT`.
+
 ## Output block every domain skill appends
 
 ```
@@ -172,5 +195,5 @@ Indices queried: <list>  Tier: <hot|warm|frozen>  Mode: <_search|_async_search>
 Window (UTC): <from> – <to>  (converted from <ticket tz>)
 Query: <compact DSL or KQL>
 Sample evidence (≤3): <@timestamp | pod | request id | message[:200]>
-Gaps: <unparsed fields, missing index, retention, throttled tier timeouts>
+Gaps: <unparsed fields, missing index, retention, throttled tier timeouts, app logs not shipped (ENABLE_FILE_BEAT=false @ sha)>
 ```
