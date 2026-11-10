@@ -215,7 +215,7 @@ Gate: any pod with `app_docs==0 && sidecar_docs>0` → run 1.5. Any pod `last` i
    "flags":{"terms":{"field":"response_flags.keyword","size":6}},
    "p99":{"percentiles":{"field":"duration","percents":[50,99]}}}}}}
 ```
-→ `deps[]{host, internal(bool: contains .svc.cluster.local), cluster, codes, flags, p99}`. Gate (compute): any dep with `(5xx + UF + UT + NR + UH)/total ≥ 0.05` → `flags.dep_failing=[hosts]` (max 3). `PassthroughCluster`/`BlackHoleCluster` → `flags.egress_registry=[hosts]`. If `catalog.source=derived`, set `catalog.deps=deps.hosts`.
+→ `deps[]{host, internal(bool: contains .svc.cluster.local), cluster, codes, flags, p99}`. Internal dep with 401/403 ≥ 5% → `flags.s2s_auth=[host]` → `service-to-service-auth-triage` (skip generic 4.1 for that host). Gate (compute): any dep with `(5xx + UF + UT + NR + UH)/total ≥ 0.05` → `flags.dep_failing=[hosts]` (max 3). `PassthroughCluster`/`BlackHoleCluster` → `flags.egress_registry=[hosts]`. If `catalog.source=derived`, set `catalog.deps=deps.hosts`.
 
 **3.5 Auth-401 shape W0** (only if `flags.envoy_generated_auth`)
 ```json
@@ -302,7 +302,7 @@ deploy_correlated  = |gw_error_start − deploy.first_seen| < 30m  ‖ |first er
 exact_minute_onset = baseline.onset.gradual == false
 blast_radius       = kafka.blast_radius ∪ db.blast_radius ∪ egress[*].scope_ns
 confidence_cap     = "medium" if any(intake.known_level != A, app_logs_not_shipped, blind hop on path, catalog.source=="derived", async_timeout, envoy_parsed==false) else "high"
-skills_to_load     = by failing_hop/classes: gateway|sidecar→envoy-istio-gateway; app+CONFIG/SECRET/CODE/OOM/THREADPOOL→springboot-dataapi; DB_*/CASSANDRA→database; KAFKA_*→kafka; TLS/JWT→certs-tls; DNS/egress→egress; envoy_generated_auth→envoyfilter-lua-auth; edge hop→request-origin-trace (decoder table only)
+skills_to_load     = by failing_hop/classes: gateway|sidecar→envoy-istio-gateway; app+CONFIG/SECRET/CODE/OOM/THREADPOOL→springboot-dataapi; DB_*/CASSANDRA→database; KAFKA_*→kafka; TLS/JWT→certs-tls; DNS/egress→egress; envoy_generated_auth→envoyfilter-lua-auth; s2s_auth→service-to-service-auth; edge hop→request-origin-trace (decoder table only)
 ```
 
 Then: load `skills_to_load` (max 3) + orchestrator Step C2/D, and reason **only over the ledger**. Every claim cites a ledger key (`traces[0].hops[3]`, `git.envoyfilter.content:L42`). If the ledger is insufficient, name the exact step id to re-run with a wider window — max 2 extra steps — then conclude with gaps.

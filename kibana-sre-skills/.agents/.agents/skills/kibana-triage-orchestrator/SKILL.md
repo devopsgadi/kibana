@@ -10,6 +10,7 @@ You have **no cluster access**. Everything comes from Elasticsearch through the 
 ## Load order
 
 1. `kibana-query-strategy` — always. Gives you field discovery, time pinning, 30-day tiering, async search.
+1b. `evidence-collection-plan` — always. **Execute it fully (Phase 0–8) before any reasoning.** It replaces Steps A–C below with a fixed query sequence and produces the EVIDENCE ledger. Steps A–C remain only as a fallback when the plan cannot run (e.g. MCP without raw DSL).
 2. Service-catalog lookup (your MCP/catalog tool) — resolve `APP` → namespace, Service name, upstream dependencies, Kafka topics, DB, egress hosts, owning team. If the catalog is unreachable, derive from logs (`upstream_cluster` aggregation) and flag it.
 3. Domain skills, chosen by the decision table below.
 
@@ -35,11 +36,14 @@ You have **no cluster access**. Everything comes from Elasticsearch through the 
 | "certificate", TLS/SSL handshake, `x509`, `UAEX`, expired, SNI | `certs-tls-triage` | `egress-triage` if outbound | baseline 30d (cert expiry is date-driven) |
 | "cannot reach <external host>", DNS, egress 403/404, ServiceEntry | `egress-triage` | `certs-tls-triage` | — |
 | App crash-loop, "APPLICATION FAILED TO START", secret/config missing | `springboot-dataapi-triage` | — | pod lifecycle + image tag change |
+| App A gets 401/403 (or 503+TLS) calling app B in-mesh: "forbidden", "unauthorized", "RBAC", "access denied", "insufficient scope" between services | `service-to-service-auth-triage` | `certs-tls-triage` if mTLS; `envoyfilter-lua-auth-triage` if ext_authz | GitLab policy diff |
 | 401/403 with no app-container log, Lua, `envoy.filters.http.lua`, ext_authz, `UAEX`, JWT/JWKS text in istio-proxy | `envoy-istio-gateway-triage` (Steps 1–3) | `envoyfilter-lua-auth-triage` (pulls filter source from GitLab, proposes fix) | GitLab commit correlation |
 | Unknown / vague ("app is down") | Step A below | route by what dominates | all |
 | Origin unknown: "user says broken", frontend error, Akamai reference #, Apigee messageid, "is it Akamai/Apigee/us", "who is calling this", "which secret" | `request-origin-trace` (hop map + funnel) | domain skill for the first failing hop | PROPOSED FIX |
 
-## Step A0 — Don't know the app or the hop? Run `request-origin-trace` first
+## Step A0 — With `evidence-collection-plan` available, skip to its Phase 0. The sections below are the manual fallback.
+
+## Step A0-fallback — Don't know the app or the hop? Run `request-origin-trace` first
 
 If the ticket gives a URL/user/time but no app, or the error could be edge (Akamai/Apigee/F5) rather than mesh, run `request-origin-trace`. It returns the first failing hop, the originator, and ids. Only then continue with Step A for the identified app.
 
@@ -115,6 +119,7 @@ Catalog: svc=<svc> deps=[...] topics=[...] db=<...> egress=[...]  (source: catal
 
 SYMPTOM      <codes/flags/messages, counts, first/last seen, ongoing?>
 FAILING HOP  <edge | gateway | sidecar→app | app | dependency <name> | kafka | db | egress/TLS>
+BASIS        <intake level; assumptions[] verbatim: app/T derived from …>
 ROOT CAUSE   <one sentence>               CONFIDENCE high|medium|low
 PROPOSED FIX <see Step C2 block — mandatory>
 EVIDENCE
@@ -129,7 +134,8 @@ READ-ONLY NEXT CHECKS  <kubectl get/describe, istioctl proxy-config, openssl s_c
 
 ## Guardrails
 
-- Stop after 12 MCP calls per domain skill unless evidence is converging; report partial findings and gaps instead of looping.
+- Stop after 12 MCP calls per domain skill unless evidence is converging; report partial findings and gaps instead of looping. With `evidence-collection-plan`: 40 ES / 6 GitLab total, then at most 2 extra named steps.
+- Reason only over the EVIDENCE ledger; every claim cites a ledger key.
 - Never state a cause without a sample log line.
 - If two domain skills disagree, report both with their evidence and lower the confidence.
 - Confidence `high` requires: failing hop identified by request-id trace **and** a matching error signature **and** timeline alignment.

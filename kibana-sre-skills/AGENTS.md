@@ -17,6 +17,7 @@ Skills live in `.agents/skills/<name>/SKILL.md`. Load by reading the file. Load 
    - `database-triage` — JDBC (Oracle/SQL Server/PG/MySQL), HikariCP, Cassandra
    - `certs-tls-triage` — expiry/rotation at edge, ingress, mTLS/SDS, JVM truststore, egress origination
    - `egress-triage` — ServiceEntry/BlackHole, egress gateway, DNS, firewall/Panorama/F5, proxy, vendor outage
+   - `service-to-service-auth-triage` — A→B 401/403 inside the mesh: which party answered (A sidecar / B sidecar policy / B app), scope, onset, policy diff, fix
    - `request-origin-trace` — origin unknown: hop map across Akamai/Apigee/F5/Istio/app, funnel by URL+time, correlation ids, originator, secret name→source trace
    - `envoyfilter-lua-auth-triage` — Envoy-generated 401/403 (Lua, jwt_authn, ext_authz): reads filter source from GitLab, proposes fix
 
