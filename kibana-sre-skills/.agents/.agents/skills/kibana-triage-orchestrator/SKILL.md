@@ -37,6 +37,11 @@ You have **no cluster access**. Everything comes from Elasticsearch through the 
 | App crash-loop, "APPLICATION FAILED TO START", secret/config missing | `springboot-dataapi-triage` | — | pod lifecycle + image tag change |
 | 401/403 with no app-container log, Lua, `envoy.filters.http.lua`, ext_authz, `UAEX`, JWT/JWKS text in istio-proxy | `envoy-istio-gateway-triage` (Steps 1–3) | `envoyfilter-lua-auth-triage` (pulls filter source from GitLab, proposes fix) | GitLab commit correlation |
 | Unknown / vague ("app is down") | Step A below | route by what dominates | all |
+| Origin unknown: "user says broken", frontend error, Akamai reference #, Apigee messageid, "is it Akamai/Apigee/us", "who is calling this", "which secret" | `request-origin-trace` (hop map + funnel) | domain skill for the first failing hop | PROPOSED FIX |
+
+## Step A0 — Don't know the app or the hop? Run `request-origin-trace` first
+
+If the ticket gives a URL/user/time but no app, or the error could be edge (Akamai/Apigee/F5) rather than mesh, run `request-origin-trace`. It returns the first failing hop, the originator, and ids. Only then continue with Step A for the identified app.
 
 ## Step A — Triage opening (unknown symptom)
 
@@ -74,7 +79,7 @@ Find a failing `x_request_id` from the gateway/sidecar query, then trace it with
 
 Chain shape for your platform:
 ```
-Akamai → F5/NGINX Plus → istio-ingressgateway → app sidecar (inbound) → Spring Boot app
+Browser/React → Akamai → Apigee → F5/NGINX Plus → istio-ingressgateway → app sidecar (inbound) → Spring Boot app
                                                    └→ app sidecar (outbound) → dataapi / other ns svc / egressgateway → external
                                                    └→ Kafka client → brokers
                                                    └→ JDBC / Cassandra driver → DB
